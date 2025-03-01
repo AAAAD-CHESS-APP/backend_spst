@@ -1,8 +1,10 @@
 package com.aaaadchess.backend.services;
 
 import jakarta.annotation.PreDestroy;
+import lombok.Getter;
 import org.springframework.stereotype.Service;
 import java.io.*;
+//import java.util.concurrent.TimeUnit;
 
 @Service
 public class StockfishService {
@@ -10,6 +12,8 @@ public class StockfishService {
     private Process stockfishProcess;
     private BufferedWriter writer;
     private BufferedReader reader;
+    @Getter
+    private String engineVersion = "Unknown";
 
     public StockfishService() {
         initializeStockfish();
@@ -22,13 +26,27 @@ public class StockfishService {
             writer = new BufferedWriter(new OutputStreamWriter(stockfishProcess.getOutputStream()));
             reader = new BufferedReader(new InputStreamReader(stockfishProcess.getInputStream()));
 
-            // Simple initialization
+            // Initialize and get engine info
             sendCommand("uci");
+
+            // Read output until we get "uciok"
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("Stockfish")) {
+                    engineVersion = line;
+                }
+                if (line.equals("uciok")) {
+                    break;
+                }
+            }
+
             sendCommand("isready");
 
-            // Clear initial output
-            while (reader.ready()) {
-                reader.readLine();
+            // Wait for "readyok"
+            while ((line = reader.readLine()) != null) {
+                if (line.equals("readyok")) {
+                    break;
+                }
             }
         } catch (IOException e) {
             throw new RuntimeException("Failed to start Stockfish: " + e.getMessage());
@@ -50,7 +68,6 @@ public class StockfishService {
             String line;
             String bestMove = null;
             while ((line = reader.readLine()) != null) {
-
                 if (line.startsWith("bestmove")) {
                     bestMove = line.split(" ")[1];
                     break;
@@ -68,6 +85,35 @@ public class StockfishService {
             }
             throw new RuntimeException("Error communicating with Stockfish: " + e.getMessage());
         }
+    }
+
+    // New methods for status checking
+    public boolean checkEngineStatus() {
+        try {
+            if (stockfishProcess == null || !stockfishProcess.isAlive()) {
+                return false;
+            }
+
+            sendCommand("isready");
+            String line;
+            long startTime = System.currentTimeMillis();
+            while ((line = reader.readLine()) != null) {
+                if (line.equals("readyok")) {
+                    return true;
+                }
+                // Timeout after 2 seconds
+                if (System.currentTimeMillis() - startTime > 2000) {
+                    return false;
+                }
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    public String getEnginePath() {
+        return STOCKFISH_PATH;
     }
 
     @PreDestroy
