@@ -15,7 +15,7 @@ public class BackendApplication {
 
 		SpringApplication.run(BackendApplication.class, args);
 
-		System.out.println("Server running on port 8080 ! .....");
+		System.out.println("Server running on port 9090 ! .....");
 	}
 
 }

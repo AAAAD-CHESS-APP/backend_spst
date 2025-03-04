@@ -7,7 +7,6 @@ public class GameAnalysisRequest {
     private List<String> moves;
     private int depth;
 
-    // Getters and setters
     public List<String> getFens() {
         return fens;
     }
